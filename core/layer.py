@@ -26,3 +26,15 @@ class Layer:
             return
         for cell in self.cells:
             cell.receive_file(file, self.name)
+class Layer:
+    def __init__(self, index, name, description=""):
+        self.index = index
+        self.name = name
+        self.description = description
+        self.cells = []
+        self.firewall = None
+        self.firewall_status = "OFFLINE"
+
+    def attach_firewall(self, firewall):
+        self.firewall = firewall
+        self.firewall_status = "ONLINE"
