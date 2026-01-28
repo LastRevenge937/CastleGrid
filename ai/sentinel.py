@@ -2,18 +2,20 @@ class Sentinel:
     def __init__(self, grid):
         self.grid = grid
 
-    def report_breach(self, layer_index: int, reason: str):
-        print(f"[Sentinel] Breach detected on Layer {layer_index}: {reason}")
-        self.grid.activate_purge()
+    def firewall_alert(self, layer_index: int, message: str):
+        self.grid.log_firewall_event(
+            f"Layer {layer_index}: {message}"
+        )
 
-    def approve_manual_protocol(self, protocol: str):
-        if protocol == "LAST_REVENGE":
-            self.grid.activate_last_revenge()
-
-    # Optional: Sentinel can also monitor global and layer firewalls
-    def monitor_firewalls(self):
+    def firewall_status_report(self):
+        report = []
         if self.grid.global_firewall:
-            print(f"[Sentinel] Global firewall '{self.grid.global_firewall.name}' online")
+            report.append(
+                f"GLOBAL: {self.grid.global_firewall.name} (ONLINE)"
+            )
         for layer in self.grid.layers:
             if layer.firewall:
-                print(f"[Sentinel] Layer {layer.index} firewall '{layer.firewall.name}' online")
+                report.append(
+                    f"Layer {layer.index}: {layer.firewall.name} ({layer.firewall_status})"
+                )
+        return report
