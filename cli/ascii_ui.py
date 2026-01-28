@@ -1,120 +1,156 @@
 import os
-from datetime import datetime
+from core.security import verify_password
+from metrics.system_metrics import SystemMetrics
+
 
 class AURA_UI:
     """
-    ASCII UI for CastleGrid.
-    Navigation keys:
-      [0]–[11] : jump to layer
-      1 : cell status
-      2 : system metrics
-      3 : PURGATORY runs
-      4 : Doctrine workflow
-      Q : quit
+    Main ASCII UI for CastleGrid
     """
+
     def __init__(self, grid, sentinel, shadowgrid, config):
         self.grid = grid
         self.sentinel = sentinel
         self.shadowgrid = shadowgrid
         self.config = config
-        self.current_layer = 0
 
-    # ------------------------
-    # Run UI loop
-    # ------------------------
+    # -------------------------
+    # Helpers
+    # -------------------------
+    def clear(self):
+        os.system("cls" if os.name == "nt" else "clear")
+
+    # -------------------------
+    # Main Draw
+    # -------------------------
+    def draw(self):
+        self.clear()
+        print(f"🏰 CASTLEGRID — {self.grid.castle_name}")
+        print(f"Protocol: {self.grid.protocol}\n")
+
+        print("┌──────────────────────── CASTLEGRID ────────────────────────┐")
+        for i in range(12):
+            layer = self.grid.layers[i]
+            print(
+                f"│ [{i:<2}] {layer.name:<20} │ {layer.description:<28} │ {layer.status:<6} │"
+            )
+        print("└────────────────────────────────────────────────────────────┘\n")
+
+        print("[1] Cells   [2] Metrics   [3] GSG / ShadowGrid")
+        print("[4] Security (Firewalls / PURGATORY / Doctrines)")
+        print("[P] PURGE   [L] LAST_REVENGE   [Q] Quit\n")
+
+    # -------------------------
+    # Main Loop
+    # -------------------------
     def run(self):
         while True:
-            os.system('cls' if os.name == 'nt' else 'clear')
-            self.display_map()
-            print("\nPress [0-11] to navigate layers, 1=Cells, 2=Metrics, 3=PURGATORY, 4=Doctrine, Q=Quit")
-            choice = input("Choice: ").strip().upper()
+            self.draw()
+            cmd = input("> ").strip().upper()
 
-            if choice == 'Q':
-                print("Exiting CastleGrid UI...")
+            if cmd == "Q":
                 break
-            elif choice in [str(i) for i in range(12)]:
-                self.current_layer = int(choice)
-            elif choice == '1':
+
+            elif cmd in ("P", "L"):
+                pw = input("Admin Password: ")
+                if not verify_password(pw, self.config["hash"]):
+                    input("Invalid password. Press Enter...")
+                    continue
+
+                if cmd == "P":
+                    self.grid.activate_purge()
+                else:
+                    self.grid.activate_last_revenge()
+
+            elif cmd == "1":
                 self.show_cells()
-            elif choice == '2':
+
+            elif cmd == "2":
                 self.show_metrics()
-            elif choice == '3':
-                self.show_purgatory()
-            elif choice == '4':
-                self.show_doctrines()
+
+            elif cmd == "3":
+                self.show_gsg()
+
+            elif cmd == "4":
+                self.show_security()
+
             else:
-                print("Invalid input! Press Enter to continue...")
-                input()
+                input("Unknown command. Press Enter...")
 
-    # ------------------------
-    # Display ASCII Layer Map
-    # ------------------------
-    def display_map(self):
-        layers = self.grid.layers
-        print("┌──────────────────────── CASTLEGRID ────────────────────────┐")
-        for i, layer in enumerate(layers):
-            mark = ">" if i == self.current_layer else " "
-            print(f"│{mark}[{i}] {layer.name:<20} │ {layer.description:<30}│")
-        print("└────────────────────────────────────────────────────────────┘")
-
-    # ------------------------
-    # Show cell status
-    # ------------------------
+    # -------------------------
+    # Cells View
+    # -------------------------
     def show_cells(self):
-        layer = self.grid.layers[self.current_layer]
-        print(f"\n[Layer {self.current_layer}] {layer.name} — Cells Status")
-        for cell in layer.cells:
-            status = getattr(cell, "status", "Idle")
-            print(f"- {cell.name:<25} Status: {status}")
-        input("\nPress Enter to return to map...")
+        self.clear()
+        print("=== CELL STATUS ===\n")
+        for layer in self.grid.layers.values():
+            print(f"Layer {layer.index}: {layer.name}")
+            for cell in layer.cells:
+                print(f"  - {cell.name}")
+            print()
+        input("Press Enter to return...")
 
-    # ------------------------
-    # Show simulated system metrics
-    # ------------------------
+    # -------------------------
+    # Metrics View
+    # -------------------------
     def show_metrics(self):
-        # Example: aggregate CPU/GPU/RAM from Infrastructure layers
-        print(f"\n[Layer {self.current_layer}] {self.grid.layers[self.current_layer].name} — Metrics")
-        cpu = getattr(self.grid.layers[2], "cpu_load", 12)  # placeholder
-        gpu = getattr(self.grid.layers[2], "gpu_load", 7)   # placeholder
-        ram = getattr(self.grid.layers[2], "ram_usage", 34) # placeholder
-        print(f"CPU Load: {cpu}%")
-        print(f"GPU Load: {gpu}%")
-        print(f"RAM Usage: {ram}%")
-        input("\nPress Enter to return to map...")
+        self.clear()
+        metrics = SystemMetrics().snapshot()
+        print("=== SYSTEM METRICS ===\n")
+        for k, v in metrics.items():
+            print(f"{k}: {v}")
+        input("\nPress Enter to return...")
 
-    # ------------------------
-    # Show PURGATORY runs
-    # ------------------------
-    def show_purgatory(self):
-        print("\n[ PURGATORY RUNS ]")
-        log_root = self.shadowgrid.purgatory_root
-        files = sorted(log_root.glob("*.json"))
-        for f in files[-10:]:  # show last 10 runs
-            with open(f, "r", encoding="utf-8") as fh:
-                data = json.load(fh)
-            ts = data.get("timestamp")
-            file_name = data.get("file")
-            status = data.get("status")
-            castle = data.get("castle")
-            print(f"{ts} | {castle} | {file_name} | {status}")
-        input("\nPress Enter to return to map...")
+    # -------------------------
+    # GSG / ShadowGrid View (MERGED)
+    # -------------------------
+    def show_gsg(self):
+        self.clear()
+        print("=== GLOBAL SHADOW GRID ===\n")
 
-    # ------------------------
-    # Show Doctrine workflow
-    # ------------------------
-    def show_doctrines(self):
-        print("\n[ DOCTRINE WORKFLOW ]")
-        root = self.shadowgrid.doctrines.root
-        for folder in ["pending", "needs_testing", "approved", "rejected", "deployed"]:
-            print(f"\n-- {folder.upper()} --")
-            for f in root.glob(f"{folder}/*.json"):
-                with open(f, "r", encoding="utf-8") as fh:
-                    data = json.load(fh)
-                name = data.get("name")
-                status = data.get("status")
-                created = data.get("created_at")
-                print(f"{name:<30} | Status: {status} | Created: {created}")
-        input("\nPress Enter to return to map...")
+        print(f"Captured Files: {len(self.shadowgrid.captured_files)}")
+        print("Recent GSG News:\n")
+
+        if hasattr(self.shadowgrid.gsg, "news"):
+            for entry in self.shadowgrid.gsg.news.latest():
+                print(f"[{entry['timestamp']}] {entry['message']}")
+        else:
+            print("No news available.")
+
+        input("\nPress Enter to return...")
+
+    # -------------------------
+    # Security View (NEW)
+    # -------------------------
+    def show_security(self):
+        self.clear()
+        print("=== SECURITY OVERVIEW ===\n")
+
+        print("Active Firewalls:")
+        fw_report = self.sentinel.firewall_status_report()
+        if fw_report:
+            for line in fw_report:
+                print(f" - {line}")
+        else:
+            print(" - None")
+
+        print("\nPURGATORY Runs:")
+        runs = getattr(self.shadowgrid, "purgatory_runs", [])
+        if runs:
+            for r in runs[-5:]:
+                print(f" - {r}")
+        else:
+            print(" - No runs recorded")
+
+        print("\nDoctrine Status:")
+        if hasattr(self.shadowgrid, "doctrines"):
+            for state in ["pending", "approved", "rejected", "needs_testing"]:
+                count = len(list((self.shadowgrid.doctrines.root / state).glob("*.json")))
+                print(f" - {state}: {count}")
+        else:
+            print(" - Doctrine system offline")
+
+        input("\nPress Enter to return...")
 
 
 
