@@ -1,4 +1,12 @@
 import time
+from core.identity import CastleIdentity
+
+identity = CastleIdentity()
+identity.load()
+
+def post(self, message: str):
+    entry = f"[{identity.name}] {message}"
+    self._append(entry)
 
 class NewsFeed:
     def __init__(self):
