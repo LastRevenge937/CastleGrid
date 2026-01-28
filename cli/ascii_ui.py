@@ -95,3 +95,15 @@ class AURA_UI:
         print(f"Captured files: {len(self.shadowgrid.captured_files)}")
         print("Pending doctrines:", len(getattr(self.shadowgrid, "pending_doctrines", [])))
         input("\nPress Enter to return to main menu...")
+
+
+
+def show_gsg(self):
+    self.clear()
+    print("=== GLOBAL SHADOW GRID ===\n")
+    print("Recent News:\n")
+    for ts, msg in self.shadowgrid.gsg.news.latest():
+        print(f"[{ts}] {msg}")
+    input("\nPress Enter to return...")
+
+
